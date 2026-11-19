@@ -20,6 +20,14 @@ jobs:
           sudo apt-get install -y bison flex bc libssl-dev libelf-dev cpio zip \
             gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
 
+      - name: Use binutils 2.34 (2019-era linker for this 4.19 tree)
+        run: |
+          curl -sL -o /tmp/ob34.deb "http://archive.ubuntu.com/ubuntu/pool/main/b/binutils/binutils-aarch64-linux-gnu_2.34-6ubuntu1.11_amd64.deb"
+          dpkg -x /tmp/ob34.deb "$HOME/ob34"
+          echo "$HOME/ob34/usr/bin" >> "$GITHUB_PATH"
+          echo "LD_LIBRARY_PATH=$HOME/ob34/usr/lib/x86_64-linux-gnu" >> "$GITHUB_ENV"
+          "$HOME/ob34/usr/bin/aarch64-linux-gnu-ld" --version | head -1
+
       - name: Fetch official kernel source (Lenovo opensource portal)
         run: |
           git clone --depth 1 -b official-kernel https://github.com/JulianDroske/linux_kernel_lenovo_tbj606f.git kernel
