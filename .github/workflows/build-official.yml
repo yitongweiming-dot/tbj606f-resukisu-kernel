@@ -1,0 +1,61 @@
+name: Build Official Kernel (clang 9.0.3)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build-official.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    steps:
+      - name: Checkout build repo
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bison flex bc libssl-dev libelf-dev cpio zip \
+            gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+
+      - name: Fetch official kernel source (Lenovo opensource portal)
+        run: |
+          git clone --depth 1 -b official-kernel https://github.com/JulianDroske/linux_kernel_lenovo_tbj606f.git kernel
+
+      - name: Fetch Android clang r353983c (Lenovo official toolchain)
+        run: |
+          mkdir -p tc
+          curl -sL -o clang.tar.gz "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/tags/android-10.0.0_r1/clang-r353983c.tar.gz"
+          tar xzf clang.tar.gz -C tc
+          ./tc/bin/clang --version
+
+      - name: Integrate ReSukiSU
+        run: |
+          cd kernel
+          curl -sL -o /tmp/setup.sh https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh
+          sh /tmp/setup.sh
+
+      - name: Configure with stock device config
+        run: |
+          cd kernel
+          cp "$GITHUB_WORKSPACE/configs/tbj606f_defconfig" .config
+          printf 'CONFIG_KSU=y\nCONFIG_KSU_MANUAL_HOOK=y\n# CONFIG_KSU_TRACEPOINT_HOOK is not set\n' >> .config
+          make ARCH=arm64 CC="$GITHUB_WORKSPACE/tc/bin/clang" CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
+          grep -E '^CONFIG_KSU' .config
+
+      - name: Build kernel
+        run: |
+          cd kernel
+          make ARCH=arm64 CC="$GITHUB_WORKSPACE/tc/bin/clang" CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- HOSTCFLAGS="-fcommon" -j"$(nproc)" Image.gz
+          ls -l arch/arm64/boot/Image.gz
+          strings arch/arm64/boot/Image | grep -m1 "Linux version"
+
+      - name: Upload kernel
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-official-clang9
+          path: |
+            kernel/arch/arm64/boot/Image.gz
+            kernel/arch/arm64/boot/Image
