@@ -314,6 +314,17 @@ if '>= KERNEL_VERSION(5, 9, 0)\n    seccomp_filter_release(fake);' not in s:
         '#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)\n    seccomp_filter_release(fake);\n#endif', 1)
     wr(p, s)
     print('app_profile release ok')
+# 17) SELinux 域改 init（原厂 sepolicy 无 ksu 域）+ 允许 shell 取 root
+p = 'KernelSU/kernel/selinux/selinux.h'
+s = rd(p)
+if '#define KERNEL_SU_DOMAIN "ksu"' in s:
+    wr(p, s.replace('#define KERNEL_SU_DOMAIN "ksu"', '#define KERNEL_SU_DOMAIN "init"', 1))
+    print('domain -> init')
+p = 'KernelSU/kernel/core/init.c'
+s = rd(p)
+if 'bool allow_shell = false;' in s:
+    wr(p, s.replace('bool allow_shell = false;', 'bool allow_shell = true;', 1))
+    print('allow_shell -> true')
 PY2
 
 echo "集成完成"
