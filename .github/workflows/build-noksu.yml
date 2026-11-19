@@ -1,0 +1,60 @@
+name: Build Plain Kernel (no KSU)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build-noksu.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bison flex bc libssl-dev libelf-dev cpio zip \
+            gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+
+      - name: Use binutils 2.34
+        run: |
+          curl -sL -o /tmp/ob34.deb "http://archive.ubuntu.com/ubuntu/pool/main/b/binutils/binutils-aarch64-linux-gnu_2.34-6ubuntu1.11_amd64.deb"
+          dpkg -x /tmp/ob34.deb "$HOME/ob34"
+          echo "$HOME/ob34/usr/bin" >> "$GITHUB_PATH"
+          echo "LD_LIBRARY_PATH=$HOME/ob34/usr/lib/x86_64-linux-gnu" >> "$GITHUB_ENV"
+
+      - name: Fetch official kernel source
+        run: git clone --depth 1 -b official-kernel https://github.com/JulianDroske/linux_kernel_lenovo_tbj606f.git kernel
+
+      - name: Fetch Android clang r353983c
+        run: |
+          mkdir -p tc
+          curl -sL -o clang.tar.gz "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/tags/android-10.0.0_r1/clang-r353983c.tar.gz"
+          tar xzf clang.tar.gz -C tc
+          ./tc/bin/clang --version
+
+      - name: Configure (stock device config, no KSU)
+        run: |
+          cd kernel
+          cp "$GITHUB_WORKSPACE/configs/tbj606f_defconfig" .config
+          printf '# CONFIG_MODVERSIONS is not set\n# CONFIG_MODULE_SIG_FORCE is not set\n' >> .config
+          make ARCH=arm64 CC="$GITHUB_WORKSPACE/tc/bin/clang" CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
+          grep -c '^CONFIG_KSU' .config || true
+
+      - name: Build kernel
+        run: |
+          cd kernel
+          INCS=$( (grep -rl 'define TRACE_INCLUDE_PATH \.' --include='*.h' techpack 2>/dev/null | xargs -r -n1 dirname; \
+                    find techpack -type d; \
+                    echo drivers/usb/typec/tcpc; echo drivers/usb/typec/tcpc/inc ) \
+                  | sort -u | sed "s|^|-I$PWD/|" | tr '\n' ' ')
+          make ARCH=arm64 CC="$GITHUB_WORKSPACE/tc/bin/clang" CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- HOSTCFLAGS="-fcommon" KCFLAGS="$INCS" -j"$(nproc)" Image.gz
+          ls -l arch/arm64/boot/Image.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kernel-plain-noksu
+          path: kernel/arch/arm64/boot/Image.gz
