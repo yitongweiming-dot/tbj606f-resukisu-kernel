@@ -28,6 +28,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git bc bison flex libssl-dev make gcc-aarch64-linux-gnu build-essential python3 rsync curl unzip libelf-dev dwarves ccache
           command -v aarch64-linux-gnu-gcc || sudo apt-get install -y --reinstall gcc-aarch64-linux-gnu
+      - name: 安装 GCC 8.5 交叉工具链（4.19 时代的编译器，替代 GCC 11）
+        run: |
+          set -e
+          TC=/opt/gcc85
+          mkdir -p "$TC"
+          curl -fsSL "https://mirrors.edge.kernel.org/pub/tools/crosstool/files/bin/x86_64/8.5.0/x86_64-gcc-8.5.0-nolibc-aarch64-linux.tar.xz" -o /tmp/gcc85.tar.xz
+          tar -xf /tmp/gcc85.tar.xz -C "$TC"
+          BD="$TC/gcc-8.5.0-nolibc/aarch64-linux/bin"
+          for f in "$BD"/aarch64-linux-*; do
+            n=$(basename "$f")
+            ln -sf "$f" "$BD/${n/aarch64-linux-/aarch64-linux-gnu-}"
+          done
+          echo "$BD" >> "$GITHUB_PATH"
+          "$BD/aarch64-linux-gnu-gcc" --version | head -1
           echo "CCACHE_DIR=$HOME/.ccache" >> $GITHUB_ENV
       - name: 拉取内核源码 (${{ github.event.inputs.kernel_branch }})
         run: |
@@ -160,7 +174,10 @@ jobs:
           KC_BASE="$KC_BASE -Wno-maybe-uninitialized -Wno-error=maybe-uninitialized"
           KC_BASE="$KC_BASE -Wno-implicit-function-declaration -Wno-error=implicit-function-declaration"
           KC_BASE="$KC_BASE -Wno-error=int-conversion -Wno-error=incompatible-pointer-types"
-          KC_BASE="$KC_BASE -Wno-error=return-type -Wno-error=address-of-packed-member"
+          KC_BASE="$KC_BASE -Wno-error=return-type"
+          GCCVER=$(aarch64-linux-gnu-gcc -dumpversion | cut -d. -f1)
+          if [ "$GCCVER" -ge 9 ]; then KC_BASE="$KC_BASE -Wno-error=address-of-packed-member"; fi
+          echo "[*] 编译工具链: $(aarch64-linux-gnu-gcc --version | head -1)"
           KC_BASE="$KC_BASE -Wno-error=misleading-indentation -Wno-misleading-indentation"
           KC_BASE="$KC_BASE -Wno-error=array-bounds -Wno-error=stringop-overflow"
           KC_BASE="$KC_BASE -Wno-error=aggressive-loop-optimizations -Wno-error=unused-function"
