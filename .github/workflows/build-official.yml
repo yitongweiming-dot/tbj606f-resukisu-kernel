@@ -54,7 +54,10 @@ jobs:
       - name: Build kernel
         run: |
           cd kernel
-          INCS=$(grep -rl 'define TRACE_INCLUDE_PATH \.' --include='*.h' techpack 2>/dev/null | xargs -r -n1 dirname | sort -u | sed "s|^|-I$PWD/|" | tr '\n' ' ')
+          INCS=$( (grep -rl 'define TRACE_INCLUDE_PATH \.' --include='*.h' techpack 2>/dev/null | xargs -r -n1 dirname; \
+                    find techpack -type d; \
+                    echo drivers/usb/typec/tcpc; echo drivers/usb/typec/tcpc/inc ) \
+                  | sort -u | sed "s|^|-I$PWD/|" | tr '\n' ' ')
           echo "extra include dirs: $INCS"
           make ARCH=arm64 CC="$GITHUB_WORKSPACE/tc/bin/clang" CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- HOSTCFLAGS="-fcommon" KCFLAGS="$INCS" -j"$(nproc)" Image.gz
           ls -l arch/arm64/boot/Image.gz
