@@ -265,18 +265,32 @@ def rd(p):
 def wr(p, s):
     io.open(p, 'w', encoding='utf-8', errors='surrogateescape').write(s)
 
-# 14) selinux_hide: 4.19 还需补三个钩子函数
+# 14) selinux_hide: 4.19 分支补齐全部钩子函数（重写 #if <5.0 .. #else 之间的内容）
+import re
 p = 'KernelSU/kernel/feature/selinux_hide.c'
 s = rd(p)
-if 'ksu_selinux_hide_handle_post_fs_data' not in s:
-    s = s.replace(
-        'void ksu_selinux_hide_exit(void)\n{\n}',
-        'void ksu_selinux_hide_exit(void)\n{\n}\n'
-        'void ksu_selinux_hide_drop_backup_if_unused(void)\n{\n}\n'
-        'void ksu_selinux_hide_handle_second_stage(void)\n{\n}\n'
-        'void ksu_selinux_hide_handle_post_fs_data(void)\n{\n}', 1)
-    wr(p, s)
-    print('selinux_hide hooks ok')
+stub = '''#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
+void ksu_selinux_hide_init(void)
+{
+}
+void ksu_selinux_hide_exit(void)
+{
+}
+void ksu_selinux_hide_drop_backup_if_unused(void)
+{
+}
+void ksu_selinux_hide_handle_second_stage(void)
+{
+}
+void ksu_selinux_hide_handle_post_fs_data(void)
+{
+}
+'''
+if 'ksu_selinux_hide_handle_post_fs_data(void)\n{\n}\n#else' not in s:
+    s2 = re.sub(r'#if LINUX_VERSION_CODE < KERNEL_VERSION\(5, 0, 0\).*?\n#else\n',
+                stub + '#else\n', s, count=1, flags=re.S)
+    wr(p, s2)
+    print('selinux_hide hooks ok' if s2 != s else 'selinux_hide hooks FAILED')
 
 # 15) kernel_umount: 4.19 无 path_umount
 p = 'KernelSU/kernel/feature/kernel_umount.c'
