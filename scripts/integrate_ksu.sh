@@ -51,6 +51,25 @@ void ksu_file_wrapper_init(void)
 '''
     open(p, 'w').write(head + s + '\n#endif /* < 5.4 */\n')
     print('file_wrapper.c patched')
+
+# 3) seccomp_cache.c: SECCOMP_ARCH_NATIVE_NR 是 5.10+ 才有的，4.19 给空实现
+p = 'KernelSU/kernel/infra/seccomp_cache.c'
+s = open(p).read()
+if '#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)' not in s:
+    head = '''#include <linux/version.h>
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
+struct seccomp_filter;
+void ksu_seccomp_clear_cache(struct seccomp_filter *filter, int nr)
+{
+}
+void ksu_seccomp_allow_cache(struct seccomp_filter *filter, int nr)
+{
+}
+#else
+'''
+    open(p, 'w').write(head + s + '\n#endif /* < 5.10 */\n')
+    print('seccomp_cache.c patched')
 PY
 
 echo "集成完成"
