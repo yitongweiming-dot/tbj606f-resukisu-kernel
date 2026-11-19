@@ -1,0 +1,48 @@
+name: Build sm6115 4.19.325 + SukiSU
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/build-sm6115-ksu.yml'
+      - 'scripts/integrate_ksu.sh'
+      - 'scripts/config_kernel.sh'
+      - 'scripts/build_kernel.sh'
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout helper repo
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison flex libssl-dev libelf-dev make zip \
+            clang-14 lld-14 llvm-14 binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu
+
+      - name: Clone kernel source (TB-J606F 4.19.325) and SukiSU
+        run: |
+          git clone --depth=1 --branch j606f-4.19.325 https://github.com/pablocpas/android_kernel_lenovo_sm6115.git kernel
+          git clone --depth=1 https://github.com/SukiSU-Ultra/SukiSU-Ultra.git suki
+          ls kernel/arch/arm64/configs/vendor/ | head
+          test -f kernel/arch/arm64/configs/vendor/bengal-perf_defconfig && echo "defconfig OK"
+          test -f kernel/arch/arm64/configs/vendor/ext_config/j606f.config && echo "j606f config OK"
+
+      - name: Integrate KernelSU
+        run: bash scripts/integrate_ksu.sh
+
+      - name: Configure
+        run: bash scripts/config_kernel.sh
+
+      - name: Build Image.gz
+        run: bash scripts/build_kernel.sh
+
+      - name: Upload kernel
+        uses: actions/upload-artifact@v4
+        with:
+          name: Image-gz-sm6115-ksu
+          path: kernel/out/arch/arm64/boot/Image.gz
+          if-no-files-found: error
