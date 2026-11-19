@@ -258,4 +258,48 @@ if '#include <linux/minmax.h>' in s:
     print('sulog/event.c patched')
 PY
 
+python3 - <<'PY2'
+import io
+def rd(p):
+    return io.open(p, encoding='utf-8', errors='surrogateescape').read()
+def wr(p, s):
+    io.open(p, 'w', encoding='utf-8', errors='surrogateescape').write(s)
+
+# 14) selinux_hide: 4.19 还需补三个钩子函数
+p = 'KernelSU/kernel/feature/selinux_hide.c'
+s = rd(p)
+if 'ksu_selinux_hide_handle_post_fs_data' not in s:
+    s = s.replace(
+        'void ksu_selinux_hide_exit(void)\n{\n}',
+        'void ksu_selinux_hide_exit(void)\n{\n}\n'
+        'void ksu_selinux_hide_drop_backup_if_unused(void)\n{\n}\n'
+        'void ksu_selinux_hide_handle_second_stage(void)\n{\n}\n'
+        'void ksu_selinux_hide_handle_post_fs_data(void)\n{\n}', 1)
+    wr(p, s)
+    print('selinux_hide hooks ok')
+
+# 15) kernel_umount: 4.19 无 path_umount
+p = 'KernelSU/kernel/feature/kernel_umount.c'
+s = rd(p)
+if 'KERNEL_VERSION(5, 9, 0)' not in s:
+    s = s.replace(
+        'static void ksu_umount_mnt(const char *mnt, struct path *path, int flags)\n{\n    int err = path_umount(path, flags);',
+        'static void ksu_umount_mnt(const char *mnt, struct path *path, int flags)\n{\n#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 9, 0)\n    (void)mnt; (void)path; (void)flags;\n    return;\n#else\n    int err = path_umount(path, flags);', 1)
+    s = s.replace(
+        '    if (err) {\n        pr_info("umount %s failed: %d\\n", mnt, err);\n    }\n}',
+        '    if (err) {\n        pr_info("umount %s failed: %d\\n", mnt, err);\n    }\n#endif\n}', 1)
+    wr(p, s)
+    print('kernel_umount ok')
+
+# 16) app_profile: 4.19 无 seccomp_filter_release
+p = 'KernelSU/kernel/policy/app_profile.c'
+s = rd(p)
+if '>= KERNEL_VERSION(5, 9, 0)\n    seccomp_filter_release(fake);' not in s:
+    s = s.replace(
+        '    seccomp_filter_release(fake);',
+        '#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)\n    seccomp_filter_release(fake);\n#endif', 1)
+    wr(p, s)
+    print('app_profile release ok')
+PY2
+
 echo "集成完成"
