@@ -10,7 +10,7 @@ make O=out -j"$(nproc)" \
   CLANG_TRIPLE=aarch64-linux-gnu- \
   CROSS_COMPILE=aarch64-linux-gnu- \
   CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
-  LD=ld.lld \
+  LD=aarch64-linux-gnu-ld \
   Image.gz
 
 ls -l out/arch/arm64/boot/Image.gz

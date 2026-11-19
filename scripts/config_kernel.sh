@@ -6,7 +6,7 @@ cd kernel
 export ARCH=arm64
 export SUBARCH=arm64
 
-MKARGS="O=out ARCH=arm64 CC=clang-14 CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- LD=ld.lld"
+MKARGS="O=out ARCH=arm64 CC=clang-14 CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- LD=aarch64-linux-gnu-ld"
 
 rm -rf out
 mkdir -p out
