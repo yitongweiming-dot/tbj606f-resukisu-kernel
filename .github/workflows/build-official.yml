@@ -47,7 +47,7 @@ jobs:
         run: |
           cd kernel
           cp "$GITHUB_WORKSPACE/configs/tbj606f_defconfig" .config
-          printf 'CONFIG_KSU=y\nCONFIG_KSU_MANUAL_HOOK=y\n# CONFIG_KSU_TRACEPOINT_HOOK is not set\n' >> .config
+          printf 'CONFIG_KSU=y\nCONFIG_KSU_MANUAL_HOOK=y\n# CONFIG_KSU_TRACEPOINT_HOOK is not set\n# CONFIG_MODVERSIONS is not set\n# CONFIG_MODULE_SIG_FORCE is not set\n' >> .config
           make ARCH=arm64 CC="$GITHUB_WORKSPACE/tc/bin/clang" CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
           grep -E '^CONFIG_KSU' .config
 
