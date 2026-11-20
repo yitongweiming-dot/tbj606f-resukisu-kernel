@@ -182,10 +182,11 @@ if old in s and 'KERNEL_VERSION(5, 5, 0)' not in s:
     print('cpu_spoof.c patched')
 
 # 9) selinux: 安装 4.19 专用完整实现（就地适配 policydb/sidtab 结构，支持策略注入）
-cp ../patches/sepolicy_419.h KernelSU/kernel/selinux/sepolicy.h
-cp ../patches/sepolicy_419.c KernelSU/kernel/selinux/sepolicy.c
-cp ../patches/rules_419.c KernelSU/kernel/selinux/rules.c
-echo 'selinux 4.19 full implementation installed'
+import shutil
+shutil.copy('../patches/sepolicy_419.h', 'KernelSU/kernel/selinux/sepolicy.h')
+shutil.copy('../patches/sepolicy_419.c', 'KernelSU/kernel/selinux/sepolicy.c')
+shutil.copy('../patches/rules_419.c', 'KernelSU/kernel/selinux/rules.c')
+print('selinux 4.19 full implementation installed')
 
 # 11) feature/selinux_hide.c: 4.19 无 selinux status_page/status_lock
 p = 'KernelSU/kernel/feature/selinux_hide.c'
