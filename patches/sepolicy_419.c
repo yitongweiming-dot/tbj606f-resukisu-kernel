@@ -842,6 +842,20 @@ bool ksu_genfscon(struct policydb *db, const char *fs_name, const char *path, co
 // mutate that copy, and publish it later.
 //////////////////////////////////////////////////////////////////////////
 
+/*
+ * 4.19 sidtab_convert() calls params->func() unconditionally while copying
+ * every live entry into the new sidtab. Passing a zeroed params struct (as an
+ * older revision did) means a NULL indirect call and an instant panic, so we
+ * must supply a real callback that just copies the context over.
+ */
+static int ksu_sidtab_convert_cpy(struct context *oldc, struct context *newc,
+                                  void *args, gfp_t gfp_flags)
+{
+    (void)args;
+    (void)gfp_flags;
+    return context_cpy(newc, oldc);
+}
+
 struct ksu_policy_419 *ksu_dup_sepolicy_419(struct selinux_ss *old_ss)
 {
     struct ksu_policy_419 *new_pol;
@@ -909,6 +923,7 @@ struct ksu_policy_419 *ksu_dup_sepolicy_419(struct selinux_ss *old_ss)
     {
         struct sidtab_convert_params params;
         memset(&params, 0, sizeof(params));
+        params.func = ksu_sidtab_convert_cpy;
         params.target = new_pol->sidtab;
         ret = sidtab_convert(old_ss->sidtab, &params);
         if (ret) {
