@@ -20,7 +20,7 @@ fi
 
 ./scripts/config --file out/.config \
   -e KPROBES -e KALLSYMS_ALL -e KALLSYMS -e EXT4_FS -e KSU -d KSU_DEBUG \
-  -e MODVERSIONS -e MODULES -d DEBUG_INFO -d DEBUG_INFO_DWARF4
+  -d MODVERSIONS -e MODULES -d DEBUG_INFO -d DEBUG_INFO_DWARF4 -e QCA_CLD_WLAN
 
 make $MKARGS olddefconfig
 
