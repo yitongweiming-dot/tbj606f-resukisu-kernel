@@ -181,40 +181,11 @@ if old in s and 'KERNEL_VERSION(5, 5, 0)' not in s:
     wr(p, s.replace(old, new, 1))
     print('cpu_spoof.c patched')
 
-# 9) selinux/rules.c: 4.19 selinux_state 无 policy 字段
-p = 'KernelSU/kernel/selinux/rules.c'
-s = rd(p)
-if '#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)' not in s:
-    head = '''#include <linux/version.h>
-#include <linux/types.h>
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
-void apply_kernelsu_rules(void)
-{
-}
-int handle_sepolicy(void __user *user_data, u64 data_len)
-{
-    (void)user_data;
-    (void)data_len;
-    return -95;
-}
-#else
-'''
-    wr(p, head + s + '\n#endif /* < 5.0 */\n')
-    print('rules.c patched')
-
-# 10) selinux/sepolicy.c: 4.19 policydb 结构整体不同
-p = 'KernelSU/kernel/selinux/sepolicy.c'
-s = rd(p)
-if '#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)' not in s:
-    head = '''#include <linux/version.h>
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
-/* 4.19 policy 内部结构与 5.x 完全不同，此文件整体不参与编译 */
-#else
-'''
-    wr(p, head + s + '\n#endif\n')
-    print('sepolicy.c patched')
+# 9) selinux: 安装 4.19 专用完整实现（就地适配 policydb/sidtab 结构，支持策略注入）
+cp ../patches/sepolicy_419.h KernelSU/kernel/selinux/sepolicy.h
+cp ../patches/sepolicy_419.c KernelSU/kernel/selinux/sepolicy.c
+cp ../patches/rules_419.c KernelSU/kernel/selinux/rules.c
+echo 'selinux 4.19 full implementation installed'
 
 # 11) feature/selinux_hide.c: 4.19 无 selinux status_page/status_lock
 p = 'KernelSU/kernel/feature/selinux_hide.c'
@@ -314,17 +285,8 @@ if '>= KERNEL_VERSION(5, 9, 0)\n    seccomp_filter_release(fake);' not in s:
         '#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)\n    seccomp_filter_release(fake);\n#endif', 1)
     wr(p, s)
     print('app_profile release ok')
-# 17) SELinux 域改 init（原厂 sepolicy 无 ksu 域）+ 允许 shell 取 root
-p = 'KernelSU/kernel/selinux/selinux.h'
-s = rd(p)
-if '#define KERNEL_SU_DOMAIN "ksu"' in s:
-    wr(p, s.replace('#define KERNEL_SU_DOMAIN "ksu"', '#define KERNEL_SU_DOMAIN "init"', 1))
-    print('domain -> shell')
-p = 'KernelSU/kernel/runtime/ksud.h'
-s = rd(p)
-if '"/data/adb/ksud"' in s:
-    wr(p, s.replace('"/data/adb/ksud"', '"/ksud"', 1))
-    print('ksud path -> /data/local/tmp')
+# 17) 保持标准 ksu 域与 /data/adb/ksud 路径（域和规则由内核 apply_kernelsu_rules 注入）
+#     只放开 allow_shell，便于 shell 侧调试
 p = 'KernelSU/kernel/core/init.c'
 s = rd(p)
 if 'bool allow_shell = false;' in s:

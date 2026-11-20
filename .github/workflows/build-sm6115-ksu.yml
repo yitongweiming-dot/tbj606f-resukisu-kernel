@@ -8,6 +8,7 @@ on:
       - 'scripts/integrate_ksu.sh'
       - 'scripts/config_kernel.sh'
       - 'scripts/build_kernel.sh'
+      - 'patches/**'
 
 jobs:
   build:
