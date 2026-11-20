@@ -20,7 +20,7 @@ fi
 
 ./scripts/config --file out/.config \
   -e KPROBES -e KALLSYMS_ALL -e KALLSYMS -e EXT4_FS -e KSU -d KSU_DEBUG \
-  -d MODVERSIONS -e MODULES -d DEBUG_INFO -d DEBUG_INFO_DWARF4
+  -e MODVERSIONS -e MODULES -d DEBUG_INFO -d DEBUG_INFO_DWARF4
 
 make $MKARGS olddefconfig
 

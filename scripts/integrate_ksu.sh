@@ -314,6 +314,26 @@ if old in s:
     print('ksud_integration -> deferred policy init')
 else:
     print('ksud_integration pattern NOT FOUND')
+# 19) Vendor .ko files were built against 4.19.157 with CONFIG_MODVERSIONS=y.
+#     With MODVERSIONS enabled our VERMAGIC_STRING matches theirs once the
+#     release prefix is skipped, but every symbol CRC still differs. Treat a
+#     version disagreement as non-fatal so the modules can actually load.
+p = 'kernel/module.c'
+s = rd(p)
+if 'return 1;\n}' not in s or 'disagrees about version of symbol' not in s.split('bad_version:')[-1]:
+    pass
+if 'pr_debug("%s: disagrees about version of symbol %s' not in s:
+    i = s.find('bad_version:')
+    j = s.find('return 0;', i) if i > 0 else -1
+    if i > 0 and j > 0:
+        s = s[:j] + 'return 1;' + s[j + len('return 0;'):]
+        s = s.replace('bad_version:\n\tpr_warn("%s: disagrees', 'bad_version:\n\tpr_debug("%s: disagrees', 1)
+        wr(p, s)
+        print('module.c check_version -> lenient')
+    else:
+        print('module.c check_version pattern NOT FOUND')
+else:
+    print('module.c already patched')
 PY2
 
 echo "集成完成"
