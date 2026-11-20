@@ -293,6 +293,23 @@ s = rd(p)
 if 'bool allow_shell = false;' in s:
     wr(p, s.replace('bool allow_shell = false;', 'bool allow_shell = true;', 1))
     print('allow_shell -> true')
+# 18) 4.19: the execve hook runs inside a kprobe pre_handler (preemption off).
+#     All policy work allocates with GFP_KERNEL, so it must run from a workqueue.
+p = 'KernelSU/kernel/selinux/selinux.h'
+s = rd(p)
+if '#define KERNEL_SU_DOMAIN "shell"' in s:
+    wr(p, s.replace('#define KERNEL_SU_DOMAIN "shell"', '#define KERNEL_SU_DOMAIN "ksu"', 1))
+    print('KERNEL_SU_DOMAIN -> ksu')
+
+p = 'KernelSU/kernel/runtime/ksud_integration.c'
+s = rd(p)
+old = "            apply_kernelsu_rules();\n            cache_sid();\n            setup_ksu_cred();\n"
+new = "            ksu_schedule_policy_init();\n"
+if old in s:
+    wr(p, s.replace(old, new, 1))
+    print('ksud_integration -> deferred policy init')
+else:
+    print('ksud_integration pattern NOT FOUND')
 PY2
 
 echo "集成完成"

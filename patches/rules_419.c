@@ -6,6 +6,9 @@
 #include <linux/lockdep.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/workqueue.h>
+#include <linux/hardirq.h>
+#include <linux/preempt.h>
 
 #include "uapi/selinux.h"
 #include "klog.h" // IWYU pragma: keep
@@ -70,7 +73,7 @@ static void commit_policy(struct ksu_policy_419 *new_pol)
     reset_avc_cache(seqno);
 }
 
-void apply_kernelsu_rules()
+static void apply_kernelsu_rules_sync(void)
 {
     struct ksu_policy_419 *pol;
     struct policydb *db;
@@ -175,6 +178,39 @@ void apply_kernelsu_rules()
     pr_info("apply_kernelsu_rules: publishing patched policy\n");
     commit_policy(pol);
     pr_info("apply_kernelsu_rules: done\n");
+}
+
+/*
+ * The execve hook fires inside a kprobe pre_handler: preemption is disabled
+ * there, so GFP_KERNEL allocations (policydb_write buffer, sidtab convert,
+ * cred preparation) would trigger "sleeping function called from invalid
+ * context" and take the whole kernel down. Defer the real work to a
+ * workqueue, where we run as a normal kernel thread and may sleep.
+ */
+static void ksu_policy_init_work_fn(struct work_struct *work);
+static DECLARE_WORK(ksu_policy_init_work, ksu_policy_init_work_fn);
+
+void ksu_schedule_policy_init(void)
+{
+    schedule_work(&ksu_policy_init_work);
+}
+
+static void ksu_policy_init_work_fn(struct work_struct *work)
+{
+    apply_kernelsu_rules_sync();
+    cache_sid();
+    setup_ksu_cred();
+    pr_info("ksu policy init work done\n");
+}
+
+void apply_kernelsu_rules(void)
+{
+    if (in_atomic() || irqs_disabled()) {
+        pr_info("apply_kernelsu_rules: atomic context, deferring to workqueue\n");
+        ksu_schedule_policy_init();
+        return;
+    }
+    apply_kernelsu_rules_sync();
 }
 
 #define KSU_SEPOLICY_MAX_BATCH_SIZE (8U * 1024U * 1024U)
