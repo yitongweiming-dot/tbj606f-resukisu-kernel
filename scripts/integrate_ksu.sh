@@ -318,12 +318,12 @@ if '>= KERNEL_VERSION(5, 9, 0)\n    seccomp_filter_release(fake);' not in s:
 p = 'KernelSU/kernel/selinux/selinux.h'
 s = rd(p)
 if '#define KERNEL_SU_DOMAIN "ksu"' in s:
-    wr(p, s.replace('#define KERNEL_SU_DOMAIN "ksu"', '#define KERNEL_SU_DOMAIN "shell"', 1))
+    wr(p, s.replace('#define KERNEL_SU_DOMAIN "ksu"', '#define KERNEL_SU_DOMAIN "init"', 1))
     print('domain -> shell')
 p = 'KernelSU/kernel/runtime/ksud.h'
 s = rd(p)
 if '"/data/adb/ksud"' in s:
-    wr(p, s.replace('"/data/adb/ksud"', '"/data/local/tmp/ksud"', 1))
+    wr(p, s.replace('"/data/adb/ksud"', '"/ksud"', 1))
     print('ksud path -> /data/local/tmp')
 p = 'KernelSU/kernel/core/init.c'
 s = rd(p)
