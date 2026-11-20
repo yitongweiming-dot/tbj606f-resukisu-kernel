@@ -298,8 +298,12 @@ if 'bool allow_shell = false;' in s:
 p = 'KernelSU/kernel/selinux/selinux.h'
 s = rd(p)
 if '#define KERNEL_SU_DOMAIN "shell"' in s:
-    wr(p, s.replace('#define KERNEL_SU_DOMAIN "shell"', '#define KERNEL_SU_DOMAIN "ksu"', 1))
-    print('KERNEL_SU_DOMAIN -> ksu')
+    s = s.replace('#define KERNEL_SU_DOMAIN "shell"', '#define KERNEL_SU_DOMAIN "ksu"', 1)
+if 'ksu_schedule_policy_init' not in s:
+    s = s.replace('void apply_kernelsu_rules();',
+                  'void apply_kernelsu_rules();\nvoid ksu_schedule_policy_init(void);', 1)
+wr(p, s)
+print('selinux.h domain/decl ok')
 
 p = 'KernelSU/kernel/runtime/ksud_integration.c'
 s = rd(p)
